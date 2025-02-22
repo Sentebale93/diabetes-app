@@ -1,39 +1,77 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
+import React, { useState } from 'react';
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as Font from "expo-font";
 import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
+import * as SplashScreen from 'expo-splash-screen';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
+const fonts = {
+  'Roboto': require('../assets/fonts/Roboto-Regular.ttf'),
+  'Roboto-Bold': require('../assets/fonts/Roboto-Bold.ttf'),
+} as const;
+
+const linking = {
+  prefixes: [Linking.createURL('/')],
+  config: {
+    screens: {
+      '(auth)': {
+        screens: {
+          welcome: 'welcome',
+          login: 'login',
+          register: 'register',
+        },
+      },
+      '(tabs)': {
+        screens: {
+          home: 'home',
+          profile: 'profile',
+        },
+      },
+    },
+  },
+};
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    async function prepare() {
+      try {
+        // Pre-load fonts
+        await Font.loadAsync(fonts);
+      } catch (error) {
+        console.warn('Error loading fonts:', error);
+      } finally {
+        // Tell the application to render
+        setIsReady(true);
+        await SplashScreen.hideAsync();
+      }
     }
-  }, [loaded]);
 
-  if (!loaded) {
+    prepare();
+  }, []);
+
+  if (!isReady) {
     return null;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <Stack 
+        screenOptions={{ 
+          headerShown: false,
+        }}
+        initialRouteName="(auth)"
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
